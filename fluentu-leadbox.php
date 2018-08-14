@@ -30,10 +30,10 @@ define('PLUGIN_NAME_VERSION', '1.0.0');
 /**
  * Constants: hard-coded for now, should go in settings later.
  */
-define('PRINTFRIENDLY_API_KEY', '8bfda2a949250c2f43c94770882004b8');
+define('PRINTFRIENDLY_API_KEY', 'xxxxx');
 define('PRINTFRIENDLY_ENDPOINT', 'https://api.printfriendly.com/v2/pdf/create?api_key=');
-define('MAILCHIMP_API_KEY', 'fa9f698dbdb357045ae237d9d968036d-us19');
-define('MAILCHIMP_LIST_ID', 'aa64795034');
+define('MAILCHIMP_API_KEY', 'xxxxx');
+define('MAILCHIMP_LIST_ID', 'xxxxx');
 define('INSERT_POINT', '<h2');
 define('LINK_SNIPPET', '<p class="fluentu-leadbox-link"><a href="/">Click to download PDF copy</a></p>');
 
