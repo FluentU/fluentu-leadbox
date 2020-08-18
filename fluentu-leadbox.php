@@ -1,21 +1,23 @@
 <?php
 
 /**
- * @link              https://github.com/elcobvg
+ * @link              https://github.com/FluentU/fluentu-leadbox
  * @since             1.0.0
  * @package           FluentuLeadbox
  *
  * @wordpress-plugin
  * Plugin Name:       FluentU LeadBox Plugin
- * Plugin URI:        https://www.fluentu.com/
- * Description:       Simple proof-of-concept plugin for emailing PDF download links.
- * Version:           1.0.0
+ * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
+ * Description:       Simple plugin for generating PDFs from posts and emailing download links.
+ * Version:           2.0.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
- * License:           GPL-2.0+
- * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       fluentu-leadbox
  */
+
+require_once('vendor/autoload.php');
+require_once('config.php');
+
 
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
@@ -25,17 +27,7 @@ if (! defined('WPINC')) {
 /**
  * Current plugin version.
  */
-define('PLUGIN_NAME_VERSION', '1.0.0');
-
-/**
- * Constants: hard-coded for now, should go in settings later.
- */
-define('PRINTFRIENDLY_API_KEY', 'xxxxx');
-define('PRINTFRIENDLY_ENDPOINT', 'https://api.printfriendly.com/v2/pdf/create?api_key=');
-define('MAILCHIMP_API_KEY', 'xxxxx');
-define('MAILCHIMP_LIST_ID', 'xxxxx');
-define('INSERT_POINT', '<h2');
-define('LINK_SNIPPET', '<p class="fluentu-leadbox-link"><a href="/">Click to download PDF copy</a></p>');
+define('PLUGIN_NAME_VERSION', '2.0.0');
 
 /**
  * Main plugin class
@@ -52,6 +44,7 @@ class FluentuLeadbox
         add_action('wp_enqueue_scripts', [$this, 'scripts']);
         add_action('save_post', [$this, 'generateDownloadLink']);
         add_filter('the_content', [$this, 'insertLinkSnippet']);
+        add_filter('the_content', [$this, 'removeShortCodes']);
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
         add_action('wp_ajax_submit_leadbox', [$this, 'submitLeadbox']);
@@ -75,34 +68,43 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Printfriendly PDF downloadlink and save as metadata
+     * Generate Printfriendly PDF, store locally and save as metadata
      *
      * @param  int    $post_id the Post ID
      * @return void
      */
     public function generateDownloadLink(int $post_id)
     {
-        $post_url = get_permalink($post_id);
+        $client = new \GuzzleHttp\Client([
+            'base_uri' => 'https://api.printfriendly.com',
+            'auth' => [PRINTFRIENDLY_API_KEY, ''],
+        ]);
 
-        $options = [
-            CURLOPT_HTTPHEADER      => ['Content-Type: application/x-www-form-urlencoded; charset=utf-8'],
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_TIMEOUT         => 30,
-            CURLOPT_URL             => PRINTFRIENDLY_ENDPOINT . PRINTFRIENDLY_API_KEY,
-            CURLOPT_POST            => 1,
-            CURLOPT_POSTFIELDS      => 'page_url=' . $post_url
-        ];
+        $url = get_permalink($post_id);
+        $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
+        $path = trailingslashit(wp_get_upload_dir()['path']) . basename($url) . '.pdf';
+        $client->request('POST', 'v1/pdfs/create', [
+            'form_params' => ['page_url' => $url . $param],
+            'sink' =>  $path,
+        ]);
+        $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . basename($url) . '.pdf';
 
-        $ch = curl_init();
-        curl_setopt_array($ch, $options);
-        $data = json_decode(curl_exec($ch));
-        curl_close($ch);
-        
-        if ($data->status === 'success') {
-            $result = update_post_meta($post_id, 'pdf_download_url', $data->file_url);
-        } else {
-            error_log('Could not generate download link for '. $post_url);
+        return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url);
+    }
+
+    /**
+     * Remove old Easy Leadbox shortcodes from post content
+     *
+     * @param  string $content the post content
+     * @return string          content without the easy leadbox shortcode
+     */
+    public function removeShortCodes(string $content)
+    {
+        if (!is_single() || !get_post_meta(get_the_ID(), 'pdf_download_url', true)) {
+            return $content;
         }
+
+        return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
     }
 
     /**
@@ -113,11 +115,12 @@ class FluentuLeadbox
      */
     public function insertLinkSnippet(string $content)
     {
-        if (!is_single() || !get_post_meta(get_the_ID(), 'pdf_download_url', true)) {
+        if (!is_single() || !get_post_meta(get_the_ID(), 'pdf_download_url', true) || $_GET['output']) {
             return $content;
         }
+        $snippet = file_get_contents(plugin_dir_path(__FILE__) . '/tmpl/link-snippet.html');
         
-        return preg_replace('/'. INSERT_POINT . '/i', LINK_SNIPPET . INSERT_POINT, $content, 1);
+        return preg_replace('/'. INSERT_POINT . '/i', $snippet . INSERT_POINT, $content, 1);
     }
 
     /**
@@ -158,43 +161,22 @@ class FluentuLeadbox
      * Add email address to MailChimp list
      *
      * @param  string $email user's email address
-     * @return bool
+     * @return int
      */
     protected function addSubscriber(string $email)
     {
-        if (empty($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            return false;
-        }
+        $ac = new \ActiveCampaign(AC_API_URL, AC_API_KEY);
+        $list_id = AC_LIST_ID;
 
-        // MailChimp API URL
-        $memberID = md5(strtolower($email));
-        $dataCenter = substr(MAILCHIMP_API_KEY, strpos(MAILCHIMP_API_KEY, '-') +1);
-        $url = 'https://' . $dataCenter . '.api.mailchimp.com/3.0/lists/' . MAILCHIMP_LIST_ID . '/members/' . $memberID;
-        
-        // member information
-        $json = json_encode([
-            'email_address' => $email,
-            'status'        => 'subscribed',
-        ]);
-
-        // send a HTTP POST request with curl
-        $options = [
-            CURLOPT_USERPWD         => 'user:' . MAILCHIMP_API_KEY,
-            CURLOPT_HTTPHEADER      => ['Content-Type: application/json'],
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_TIMEOUT         => 30,
-            CURLOPT_CUSTOMREQUEST   => 'PUT',
-            CURLOPT_SSL_VERIFYPEER  => false,
-            CURLOPT_POSTFIELDS      => $json
+        $contact = [
+            'email'              => $email,
+            "p[{$list_id}]"      => $list_id,
+            "status[{$list_id}]" => 1,
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, $options);
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $contact_sync = $ac->api('contact/sync', $contact);
 
-        return $httpCode === 200;
+        return $contact_sync->result_code;
     }
 
     /**

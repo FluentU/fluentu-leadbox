@@ -1,2 +1,2 @@
 # fluentu-leadbox
-Simple proof-of-concept plugin for emailing PDF download links.
+Simple plugin for generating PDFs from posts and emailing download links

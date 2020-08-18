@@ -1,0 +1,27 @@
+{
+    "name": "fluentu/fluentu-leadbox",
+    "description": "A plugin for generating PDFs from posts and emailing download links.",
+    "type": "wordpress-plugin",
+    "authors": [
+        {
+            "name": "Elco Brouwer Von Gonzenbach",
+            "email": "elco.brouwer@enux.com",
+            "homepage": "https://github.com/elcobvg"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0",
+        "activecampaign/api-php": "^2.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "FluentU\\": "src/"
+        }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}
