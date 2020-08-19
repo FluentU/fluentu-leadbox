@@ -15,9 +15,8 @@
  * Text Domain:       fluentu-leadbox
  */
 
-require_once('vendor/autoload.php');
 require_once('config.php');
-
+require_once('vendor/autoload.php');
 
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
@@ -71,7 +70,7 @@ class FluentuLeadbox
      * Generate Printfriendly PDF, store locally and save as metadata
      *
      * @param  int    $post_id the Post ID
-     * @return void
+     * @return mixed  Error message or false if no error
      */
     public function generateDownloadLink(int $post_id)
     {
@@ -83,13 +82,18 @@ class FluentuLeadbox
         $url = get_permalink($post_id);
         $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
         $path = trailingslashit(wp_get_upload_dir()['path']) . basename($url) . '.pdf';
-        $client->request('POST', 'v1/pdfs/create', [
+
+        $response = $client->request('POST', 'v1/pdfs/create', [
             'form_params' => ['page_url' => $url . $param],
             'sink' =>  $path,
         ]);
+        if ($response->getStatusCode() !== 200) {
+            return $response->getReasonPhrase();
+        }
+
         $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . basename($url) . '.pdf';
 
-        return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url);
+        return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
     }
 
     /**
@@ -100,11 +104,11 @@ class FluentuLeadbox
      */
     public function removeShortCodes(string $content)
     {
-        if (!is_single() || !get_post_meta(get_the_ID(), 'pdf_download_url', true)) {
-            return $content;
+        if (is_single()) {
+            return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
         }
 
-        return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
+        return $content;
     }
 
     /**
@@ -115,7 +119,7 @@ class FluentuLeadbox
      */
     public function insertLinkSnippet(string $content)
     {
-        if (!is_single() || !get_post_meta(get_the_ID(), 'pdf_download_url', true) || $_GET['output']) {
+        if (!is_single() || $_GET['output']) {
             return $content;
         }
         $snippet = file_get_contents(plugin_dir_path(__FILE__) . '/tmpl/link-snippet.html');
@@ -142,41 +146,37 @@ class FluentuLeadbox
      */
     public function submitLeadbox()
     {
-        $data = $_POST;
-
-        // check the nonce
-        if (false == check_ajax_referer('fluentu_leadbox_' . $data['post'], 'nonce', false)) {
-            wp_send_json_error();
+        // check the nonce first
+        if (false == check_ajax_referer('fluentu_leadbox_' . $_POST['post'], 'nonce', false)) {
+            wp_send_json_error(__('No permission.', 'fluentu-leadbox'));
         }
 
-        // add subscriber and send email
-        if ($this->addSubscriber($data['email']) && $this->sendDownloadEmail($data['email'], $data['post'])) {
-            wp_send_json_success(__('Thanks, check your inbox now!', 'fluentu-leadbox'));
-        } else {
-            wp_send_json_error();
+        if ($error = $this->sendDownloadEmail($_POST['email'], $_POST['post'])) {
+            wp_send_json_error(__($error, 'fluentu-leadbox'));
         }
+
+        wp_send_json_success(__('Thanks, check your inbox now!', 'fluentu-leadbox'));
     }
 
     /**
-     * Add email address to MailChimp list
+     * Add email address to Active Campaign list
      *
      * @param  string $email user's email address
-     * @return int
+     * @return mixed  Error message or false if no error
      */
     protected function addSubscriber(string $email)
     {
         $ac = new \ActiveCampaign(AC_API_URL, AC_API_KEY);
-        $list_id = AC_LIST_ID;
 
         $contact = [
-            'email'              => $email,
-            "p[{$list_id}]"      => $list_id,
-            "status[{$list_id}]" => 1,
+            'email'                         => $email,
+            'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
+            'status[' . AC_LIST_ID . ']'    => 1,
         ];
 
         $contact_sync = $ac->api('contact/sync', $contact);
 
-        return $contact_sync->result_code;
+        return $contact_sync->result_code ? false : 'Contact could not be added';
     }
 
     /**
@@ -184,14 +184,28 @@ class FluentuLeadbox
      *
      * @param  string $email   the user's email address
      * @param  int    $post_id the Post ID
-     * @return bool
+     * @return mixed  Error message or false if no error
      */
     protected function sendDownloadEmail(string $email, int $post_id)
     {
+        if ($error = $this->addSubscriber($email)) {
+            return $error;
+        }
+
         $download_url = get_post_meta($post_id, 'pdf_download_url', true);
+
+        if (!$download_url) {
+            // Generate PDF 'on the fly' if it doesn't exist yet
+            if ($error = $this->generateDownloadLink($post_id)) {
+                return $error;
+            }
+            $download_url = get_post_meta($post_id, 'pdf_download_url', true);
+        }
+
         $subject = 'Download ' . get_the_title($post_id);
         $message = $subject . ' here: ' . $download_url;
-        return wp_mail($email, $subject, $message);
+
+        return wp_mail($email, $subject, $message) ? false : 'Email could not be sent';
     }
 }
 

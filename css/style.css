@@ -4,30 +4,30 @@
 }
 
 .fluentu-leadbox-backdrop {
-	background-color: rgba(0,0,0,0.5);
-	position: fixed;
-	z-index: 500;
-	top: 0;
-	left: 0;
-	bottom: 0;
-	right: 0;
-	display: none;
+    background-color: rgba(0, 0, 0, 0.5);
+    position: fixed;
+    z-index: 500;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    display: none;
 }
 
 .fluentu-leadbox-show {
-	display: flex;
+    display: flex;
 }
 
 .fluentu-leadbox {
-	background-color: white;
-	max-width: 480px;
-	min-height: 160px;
-	margin: auto;
-	padding: 1.5rem;
-	position: relative;
-	top: -120px;
+    background-color: white;
+    max-width: 480px;
+    min-height: 160px;
+    margin: auto;
+    padding: 1.5rem;
+    position: relative;
+    top: -120px;
 }
 
 .fluentu-leadbox input {
-	margin: 0.5rem 0;
+    margin: 0.5rem 0;
 }
