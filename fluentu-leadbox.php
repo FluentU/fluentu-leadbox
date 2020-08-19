@@ -16,7 +16,6 @@
  */
 
 require_once('config.php');
-require_once('vendor/autoload.php');
 
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
@@ -82,22 +81,19 @@ class FluentuLeadbox
         $response = wp_safe_remote_post(
             'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
             [
-                'timeout'  => 300,
-                'body' => ['page_url' => $url . $param],
+                'timeout'   => 300,
+                'body'      => ['page_url' => $url . $param],
             ]
         );
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
         // Fetch PDF and store locally
-        if ($body['status'] === 'success' && wp_safe_remote_get(
-            $body['file_url'],
-            [
-                'timeout'  => 300,
-                'stream'   => true,
-                'filename' => $path
-                ]
-        )) {
+        if ($body['status'] === 'success' && wp_safe_remote_get($body['file_url'], [
+            'timeout'  => 300,
+            'stream'   => true,
+            'filename' => $path
+        ])) {
             return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
         }
                        
@@ -170,17 +166,24 @@ class FluentuLeadbox
      */
     protected function addSubscriber(string $email)
     {
-        $ac = new \ActiveCampaign(AC_API_URL, AC_API_KEY);
-
+        $params = [
+            'api_key'       => AC_API_KEY,
+            'api_action'    => 'contact_sync',
+            'api_output'    => 'json',
+        ];
+        
         $contact = [
             'email'                         => $email,
             'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
             'status[' . AC_LIST_ID . ']'    => 1,
         ];
-
-        $contact_sync = $ac->api('contact/sync', $contact);
-
-        return $contact_sync->result_code ? false : 'Contact could not be added';
+        
+        $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
+        
+        $response = wp_safe_remote_post($url, ['body' => $contact]);
+        $result = json_decode(wp_remote_retrieve_body($response), true);
+        
+        return $result['result_code'] ? false : 'Contact could not be added';
     }
 
     /**
