@@ -74,26 +74,34 @@ class FluentuLeadbox
      */
     public function generateDownloadLink(int $post_id)
     {
-        $client = new \GuzzleHttp\Client([
-            'base_uri' => 'https://api.printfriendly.com',
-            'auth' => [PRINTFRIENDLY_API_KEY, ''],
-        ]);
-
         $url = get_permalink($post_id);
         $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
         $path = trailingslashit(wp_get_upload_dir()['path']) . basename($url) . '.pdf';
-
-        $response = $client->request('POST', 'v1/pdfs/create', [
-            'form_params' => ['page_url' => $url . $param],
-            'sink' =>  $path,
-        ]);
-        if ($response->getStatusCode() !== 200) {
-            return $response->getReasonPhrase();
-        }
-
         $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . basename($url) . '.pdf';
+        
+        $response = wp_safe_remote_post(
+            'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
+            [
+                'timeout'  => 300,
+                'body' => ['page_url' => $url . $param],
+            ]
+        );
 
-        return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        
+        // Fetch PDF and store locally
+        if ($body['status'] === 'success' && wp_safe_remote_get(
+            $body['file_url'],
+            [
+                'timeout'  => 300,
+                'stream'   => true,
+                'filename' => $path
+                ]
+        )) {
+            return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
+        }
+                       
+        return __('Could not generate download link for '. $url, 'fluentu-leadbox');
     }
 
     /**
@@ -104,11 +112,7 @@ class FluentuLeadbox
      */
     public function removeShortCodes(string $content)
     {
-        if (is_single()) {
-            return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
-        }
-
-        return $content;
+        return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
     }
 
     /**

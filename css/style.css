@@ -1,6 +1,6 @@
 .fluentu-leadbox-link {
     background-color: #f5f5f5;
-    padding: 0.5rem;
+    padding: 1rem;
 }
 
 .fluentu-leadbox-backdrop {
@@ -28,6 +28,14 @@
     top: -120px;
 }
 
+.fluentu-leadbox form {
+    margin: 1rem 0;
+}
+
 .fluentu-leadbox input {
     margin: 0.5rem 0;
+}
+
+.fluentu-leadbox .email-input {
+    width: 100%;
 }
