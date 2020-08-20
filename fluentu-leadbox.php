@@ -42,7 +42,6 @@ class FluentuLeadbox
         add_action('wp_enqueue_scripts', [$this, 'scripts']);
         add_action('save_post', [$this, 'generateDownloadLink']);
         add_filter('the_content', [$this, 'insertLinkSnippet']);
-        add_filter('the_content', [$this, 'removeShortCodes']);
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
         add_action('wp_ajax_submit_leadbox', [$this, 'submitLeadbox']);
@@ -101,18 +100,8 @@ class FluentuLeadbox
     }
 
     /**
-     * Remove old Easy Leadbox shortcodes from post content
-     *
-     * @param  string $content the post content
-     * @return string          content without the easy leadbox shortcode
-     */
-    public function removeShortCodes(string $content)
-    {
-        return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content, 1);
-    }
-
-    /**
      * Insert the 'click to get a PDF copy' link in the post content
+     * Also removes old Easy Leadbox shortcodes from post content
      *
      * @param  string $content the post content
      * @return string          content with the link snippet
@@ -120,11 +109,22 @@ class FluentuLeadbox
     public function insertLinkSnippet(string $content)
     {
         if (!is_single() || $_GET['output']) {
-            return $content;
+            // Only remove shortcodes on non-blog post pages
+            return preg_replace('/\[easyleadbox id=[^\n\r]+\]/', '', $content);
         }
+
         $snippet = file_get_contents(plugin_dir_path(__FILE__) . '/tmpl/link-snippet.html');
-        
-        return preg_replace('/'. INSERT_POINT . '/i', $snippet . INSERT_POINT, $content, 1);
+
+        // Replace existing shortcodes with new leadbox
+        $result = preg_replace('/\[easyleadbox id=[^\n\r]+\]/', $snippet, $content);
+
+        if ($result === $content) {
+            // If no shortcodes found, insert a new leadbox
+            $result = preg_replace('/'. INSERT_POINT . '/i', $snippet . INSERT_POINT, $content, 1);
+        }
+
+        // Cleanup white space and return
+        return str_replace('&nbsp;', '', $result);
     }
 
     /**
@@ -210,9 +210,27 @@ class FluentuLeadbox
         }
 
         $subject = 'Download ' . get_the_title($post_id);
-        $message = $subject . ' here: ' . $download_url;
+        $message = $this->formatMessage(get_the_title($post_id), $download_url);
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
 
-        return wp_mail($email, $subject, $message) ? false : 'Email could not be sent';
+        return wp_mail($email, $subject, $message, $headers) ? false : 'Email could not be sent';
+    }
+
+    /**
+     * Format email message
+     *
+     * @param  string $title        The blog post title
+     * @param  string $download_url Download URL for the PDF
+     * @return string               Formatted HTML message
+     */
+    protected function formatMessage(string $title, string $download_url)
+    {
+        $message = file_get_contents(plugin_dir_path(__FILE__) . '/tmpl/mail.html');
+        $message = str_replace('{{ url }}', get_site_url(), $message);
+        $message = str_replace('{{ title }}', $title, $message);
+        $message = str_replace('{{ pdf }}', $download_url, $message);
+
+        return $message;
     }
 }
 
