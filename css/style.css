@@ -45,3 +45,7 @@
 .fluentu-leadbox .email-input {
     width: 100%;
 }
+
+.fluentu-error {
+    color: red;
+}

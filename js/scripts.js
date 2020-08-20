@@ -19,8 +19,11 @@
       $(btn).val('Preparing your PDF...');
       $.post(options.ajaxurl, options, function(response) {
         if (response.success === true) {
+          heading.removeClass('fluentu-error');
           popform.hide();
           close.show();
+        } else {
+          heading.addClass('fluentu-error');
         }
         heading.html(response.data);
         $(btn).val(label);
