@@ -45,6 +45,7 @@ class FluentuLeadbox
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
         add_action('wp_ajax_submit_leadbox', [$this, 'submitLeadbox']);
+        add_filter('wp_mail_from_name', function ($name) { return 'FluentU'; });
     }
 
     /**

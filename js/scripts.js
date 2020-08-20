@@ -5,7 +5,11 @@
   const popform = $('#fluentu-form');
   const heading = $('.fluentu-leadbox h3');
   const btn = $('#fluentu-form [type=submit]');
+  const close = $('.fluentu-leadbox .close-btn');
   const label = btn.val();
+  const title = heading.html();
+
+  close.hide();
 
   popform.on('submit', function(event) {
     event.preventDefault();
@@ -15,7 +19,8 @@
       $(btn).val('Preparing your PDF...');
       $.post(options.ajaxurl, options, function(response) {
         if (response.success === true) {
-          popform.remove();
+          popform.hide();
+          close.show();
         }
         heading.html(response.data);
         $(btn).val(label);
@@ -30,6 +35,17 @@
 
   modal.on('click', function(event) {
     modal.removeClass('fluentu-leadbox-show');
+    close.hide();
+    popform.show();
+    heading.html(title);
+  });
+
+  close.on('click', function(event) {
+    event.preventDefault();
+    modal.removeClass('fluentu-leadbox-show');
+    close.hide();
+    popform.show();
+    heading.html(title);
   });
 
   leadbox.on('click', function(event) {
