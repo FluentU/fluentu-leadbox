@@ -45,7 +45,9 @@ class FluentuLeadbox
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
         add_action('wp_ajax_submit_leadbox', [$this, 'submitLeadbox']);
-        add_filter('wp_mail_from_name', function ($name) { return 'FluentU'; });
+        add_filter('wp_mail_from_name', function ($name) {
+            return 'FluentU';
+        });
     }
 
     /**
@@ -73,6 +75,10 @@ class FluentuLeadbox
      */
     public function generateDownloadLink(int $post_id)
     {
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return false;   // Exit without error
+        }
+
         $url = get_permalink($post_id);
         $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
         $path = trailingslashit(wp_get_upload_dir()['path']) . basename($url) . '.pdf';
