@@ -216,7 +216,7 @@ class FluentuLeadbox
             $download_url = get_post_meta($post_id, 'pdf_download_url', true);
         }
 
-        $subject = 'Download ' . get_the_title($post_id);
+        $subject = 'Download ' . html_entity_decode(get_the_title($post_id));
         $message = $this->formatMessage(get_the_title($post_id), $download_url);
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 
