@@ -130,8 +130,7 @@ class FluentuLeadbox
             $result = preg_replace('/'. INSERT_POINT . '/i', $snippet . INSERT_POINT, $content, 1);
         }
 
-        // Cleanup white space and return
-        return str_replace('&nbsp;', '', $result);
+        return $result;
     }
 
     /**
