@@ -23,11 +23,6 @@ if (! defined('WPINC')) {
 }
 
 /**
- * Current plugin version.
- */
-define('PLUGIN_NAME_VERSION', '2.0.0');
-
-/**
  * Main plugin class
  */
 class FluentuLeadbox
