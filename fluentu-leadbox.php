@@ -177,6 +177,7 @@ class FluentuLeadbox
             'email'                         => $email,
             'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
             'status[' . AC_LIST_ID . ']'    => 1,
+            'tags'                          => AC_TAGS,
         ];
         
         $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
