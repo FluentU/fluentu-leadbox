@@ -177,7 +177,7 @@ class FluentuLeadbox
             'email'                         => $email,
             'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
             'status[' . AC_LIST_ID . ']'    => 1,
-            'tags'                          => AC_TAGS,
+            'tags'                          => $this->generateTags(),
         ];
         
         $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
@@ -233,6 +233,23 @@ class FluentuLeadbox
         $message = str_replace('{{ pdf }}', $download_url, $message);
 
         return $message;
+    }
+
+    /**
+     * Generate Active Campaign tags based on Blog tagline
+     * 
+     * @return string [description]
+     */
+    protected function generateTags()
+    {
+        $tags = ['SOURCE: Blog', 'SOURCE: Blog - Leadbox'];
+
+        $blog_tag = str_replace('FluentU', '', get_bloginfo('description'));
+        $blog_tag = str_replace('Blog', '', $blog_tag);
+        $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
+        $tags[] = 'BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag));
+
+        return join(',', $tags);
     }
 }
 
