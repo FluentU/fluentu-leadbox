@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.0.0
+ * Version:           2.1.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -36,7 +36,7 @@ class FluentuLeadbox
     {
         add_action('wp_enqueue_scripts', [$this, 'scripts']);
         add_action('save_post', [$this, 'generateDownloadLink']);
-        add_filter('the_content', [$this, 'insertLinkSnippet']);
+        add_filter('the_content', [$this, 'insertLinkSnippet'], 100);
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
         add_action('wp_ajax_submit_leadbox', [$this, 'submitLeadbox']);
@@ -121,8 +121,10 @@ class FluentuLeadbox
         $result = preg_replace('/\[easyleadbox id=[^\n\r]+\]/', $snippet, $content);
 
         if ($result === $content) {
-            // If no shortcodes found, insert a new leadbox
-            $result = preg_replace('/'. INSERT_POINT . '/i', $snippet . INSERT_POINT, $content, 1);
+            // If no shortcodes found, insert new leadboxes
+            foreach (INSERT_POINTS as $pattern) {
+                $result = preg_replace('/'. $pattern . '/i', $snippet . $pattern, $result, 1);
+            }
         }
 
         return $result;
