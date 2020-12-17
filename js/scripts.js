@@ -22,6 +22,7 @@
       http.open('POST', options.ajaxurl, true);
       http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
       http.onload = function () {
+        var responseText = JSON.parse(http.responseText);
         if (this.status >= 200 && this.status < 400) {
           heading.classList.remove('fluentu-error');
           popform.style.display = 'none';
@@ -29,7 +30,7 @@
         } else {
           heading.classList.add('fluentu-error');
         }
-        heading.innerHTML = http.responseText.data;
+        heading.innerHTML = responseText.data;
         btn.value = label;
       };
       http.onerror = function(error) {
