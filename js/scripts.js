@@ -1,57 +1,69 @@
-(function($) {
-  const link = $('.fluentu-leadbox-link a');
-  const modal = $('.fluentu-leadbox-backdrop');
-  const leadbox = $('.fluentu-leadbox');
-  const popform = $('#fluentu-form');
-  const heading = $('.fluentu-leadbox h3');
-  const btn = $('#fluentu-form [type=submit]');
-  const close = $('.fluentu-leadbox .close-btn');
-  const label = btn.val();
-  const title = heading.html();
+(function() {
+  var link = document.querySelector('.fluentu-leadbox-link a');
+  var modal = document.querySelector('.fluentu-leadbox-backdrop');
+  var leadbox = document.querySelector('.fluentu-leadbox');
+  var popform = document.querySelector('#fluentu-form');
+  var heading = document.querySelector('.fluentu-leadbox h3');
+  var btn = document.querySelector('#fluentu-form [type=submit]');
+  var close = document.querySelector('.fluentu-leadbox .close-btn');
+  var label = btn.value;
+  var title = heading.innerHTML;
 
-  close.hide();
+  close.style.display = 'none';
 
-  popform.on('submit', function(event) {
+  popform.addEventListener('submit', function(event) {
     event.preventDefault();
-    options.email = $('#fluentu-form [name=email]').val();
+    options.email = document.querySelector('#fluentu-form [name=email]').value;
 
     if (options.email) {
-      $(btn).val('Preparing your PDF...');
-      $.post(options.ajaxurl, options, function(response) {
-        if (response.success === true) {
-          heading.removeClass('fluentu-error');
-          popform.hide();
-          close.show();
+      btn.value = 'Preparing your PDF...';
+
+      var http = new XMLHttpRequest();
+      http.open('POST', options.ajaxurl, true);
+      http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+      http.onload = function () {
+        if (this.status >= 200 && this.status < 400) {
+          heading.classList.remove('fluentu-error');
+          popform.style.display = 'none';
+          close.style.display = 'block';
         } else {
-          heading.addClass('fluentu-error');
+          heading.classList.add('fluentu-error');
         }
-        heading.html(response.data);
-        $(btn).val(label);
-      });
+        heading.innerHTML = http.responseText.data;
+        btn.value = label;
+      };
+      http.onerror = function(error) {
+        console.error(error);
+      };
+
+      delete options.ajaxurl;
+      http.send(Object.keys(options).map(function(k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(options[k])
+      }).join('&'));
     }
   });
 
-  link.on('click', function(event) {
+  link.addEventListener('click', function(event) {
     event.preventDefault();
-    modal.addClass('fluentu-leadbox-show');
+    modal.classList.add('fluentu-leadbox-show');
   });
 
-  modal.on('click', function(event) {
-    modal.removeClass('fluentu-leadbox-show');
-    close.hide();
-    popform.show();
-    heading.html(title);
+  modal.addEventListener('click', function(event) {
+    modal.classList.remove('fluentu-leadbox-show');
+    close.style.display = 'none';
+    popform.style.display = 'block';
+    heading.innerHTML = title;
   });
 
-  close.on('click', function(event) {
+  close.addEventListener('click', function(event) {
     event.preventDefault();
-    modal.removeClass('fluentu-leadbox-show');
-    close.hide();
-    popform.show();
-    heading.html(title);
+    modal.classList.remove('fluentu-leadbox-show');
+    close.style.display = 'none';
+    popform.style.display = 'block';
+    heading.innerHTML = title;
   });
 
-  leadbox.on('click', function(event) {
+  leadbox.addEventListener('click', function(event) {
     event.stopPropagation();
   });
-})(jQuery);
+})();
