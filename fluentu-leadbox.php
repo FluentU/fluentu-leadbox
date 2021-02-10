@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.2.0
+ * Version:           2.2.1
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -83,7 +83,10 @@ class FluentuLeadbox
             'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
             [
                 'timeout'   => 300,
-                'body'      => ['page_url' => $url . $param],
+                'body'      => [
+                    'page_url'  => $url . $param,
+                    'css_url'   => PRINTFRIENDLY_CSS_URL,
+                ],
             ]
         );
 
