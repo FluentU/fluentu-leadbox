@@ -80,7 +80,7 @@ class FluentuLeadbox
         
         $url = get_permalink($post_id);
         $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
-        $file = strpos(rawurlencode($url), '%') === false ? basename($url) : $post_id;
+        $file = strpos(rawurlencode(basename($url)), '%') === false ? basename($url) : $post_id;
         $path = trailingslashit(wp_get_upload_dir()['path']) . $file . '.pdf';
         $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . $file . '.pdf';
         
