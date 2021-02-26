@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.2.3
+ * Version:           2.3.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -173,9 +173,10 @@ class FluentuLeadbox
      * Add email address to Active Campaign list
      *
      * @param  string $email user's email address
+     * @param  int    $post_id the Post ID
      * @return mixed  Error message or false if no error
      */
-    protected function addSubscriber(string $email)
+    protected function addSubscriber(string $email, int $post_id)
     {
         $params = [
             'api_key'       => AC_API_KEY,
@@ -187,7 +188,7 @@ class FluentuLeadbox
             'email'                         => $email,
             'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
             'status[' . AC_LIST_ID . ']'    => 1,
-            'tags'                          => $this->generateTags(),
+            'tags'                          => $this->generateTags($post_id),
         ];
         
         $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
@@ -207,7 +208,7 @@ class FluentuLeadbox
      */
     protected function sendDownloadEmail(string $email, int $post_id)
     {
-        if ($error = $this->addSubscriber($email)) {
+        if ($error = $this->addSubscriber($email, $post_id)) {
             return $error;
         }
 
@@ -247,10 +248,11 @@ class FluentuLeadbox
 
     /**
      * Generate Active Campaign tags based on Blog tagline
-     * 
+     *
+     * @param  int    $post_id the Post ID
      * @return string [description]
      */
-    protected function generateTags()
+    protected function generateTags(int $post_id)
     {
         $tags = ['SOURCE: Blog', 'SOURCE: Blog - Leadbox'];
 
@@ -258,6 +260,11 @@ class FluentuLeadbox
         $blog_tag = str_replace('Blog', '', $blog_tag);
         $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
         $tags[] = 'BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag));
+
+        $categories = wp_get_post_categories($_POST['post'], ['fields' => 'names']);
+        foreach($categories as $category) {
+            $tags[] = 'WP CAT: ' . $category;
+        }
 
         return join(',', $tags);
     }
