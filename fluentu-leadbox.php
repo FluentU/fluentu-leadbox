@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.3.0
+ * Version:           2.4.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -35,7 +35,7 @@ class FluentuLeadbox
     public function __construct()
     {
         add_action('wp_enqueue_scripts', [$this, 'scripts']);
-        add_action('save_post', [$this, 'generateDownloadLink']);
+        add_action('save_post', [$this, 'clearPdfLink']);
         add_filter('the_content', [$this, 'insertLinkSnippet'], 100);
         add_filter('wp_footer', [$this, 'modalMarkup']);
         add_action('wp_ajax_nopriv_submit_leadbox', [$this, 'submitLeadbox']);
@@ -63,50 +63,14 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Printfriendly PDF, store locally and save as metadata
+     * Remove current PDF link when saving post
      *
      * @param  int    $post_id the Post ID
      * @return mixed  Error message or false if no error
      */
-    public function generateDownloadLink(int $post_id)
+    public function clearPdfLink(int $post_id)
     {
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-            return false;   // Exit without error
-        }
-        $post = get_post($post_id);
-        if (!$post || 'auto-draft' === $post->post_status) {
-            return false;   // Exit without error            
-        }
-        
-        $url = get_permalink($post_id);
-        $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
-        $file = strpos(rawurlencode(basename($url)), '%') === false ? basename($url) : $post_id;
-        $path = trailingslashit(wp_get_upload_dir()['path']) . $file . '.pdf';
-        $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . $file . '.pdf';
-        
-        $response = wp_safe_remote_post(
-            'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
-            [
-                'timeout'   => 300,
-                'body'      => [
-                    'page_url'  => $url . $param,
-                    'css_url'   => PRINTFRIENDLY_CSS_URL,
-                ],
-            ]
-        );
-
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        
-        // Fetch PDF and store locally
-        if ($body['status'] === 'success' && wp_safe_remote_get($body['file_url'], [
-            'timeout'  => 300,
-            'stream'   => true,
-            'filename' => $path
-        ])) {
-            return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
-        }
-                       
-        return __('Could not generate download link for '. $url, 'fluentu-leadbox');
+        return delete_post_meta($post_id, 'pdf_download_url') ? false : 'Could not delete PDF link';
     }
 
     /**
@@ -230,6 +194,45 @@ class FluentuLeadbox
     }
 
     /**
+     * Generate Printfriendly PDF, store locally and save as metadata
+     *
+     * @param  int    $post_id the Post ID
+     * @return mixed  Error message or false if no error
+     */
+    protected function generateDownloadLink(int $post_id)
+    {
+        $url = get_permalink($post_id);
+        $param = strpos($url, '?') ? '&output=pdf' : '?output=pdf';
+        $file = strpos(rawurlencode(basename($url)), '%') === false ? basename($url) : $post_id;
+        $path = trailingslashit(wp_get_upload_dir()['path']) . $file . '.pdf';
+        $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . $file . '.pdf';
+        
+        $response = wp_safe_remote_post(
+            'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
+            [
+                'timeout'   => 300,
+                'body'      => [
+                    'page_url'  => $url . $param,
+                    'css_url'   => PRINTFRIENDLY_CSS_URL,
+                ],
+            ]
+        );
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        
+        // Fetch PDF and store locally
+        if ($body['status'] === 'success' && wp_safe_remote_get($body['file_url'], [
+            'timeout'  => 300,
+            'stream'   => true,
+            'filename' => $path
+        ])) {
+            return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
+        }
+                       
+        return __('Could not generate download link for '. $url, 'fluentu-leadbox');
+    }
+
+    /**
      * Format email message
      *
      * @param  string $title        The blog post title
@@ -262,7 +265,7 @@ class FluentuLeadbox
         $tags[] = 'BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag));
 
         $categories = wp_get_post_categories($_POST['post'], ['fields' => 'names']);
-        foreach($categories as $category) {
+        foreach ($categories as $category) {
             $tags[] = 'WP CAT: ' . $category;
         }
 
