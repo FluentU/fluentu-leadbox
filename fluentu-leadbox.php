@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.4.0
+ * Version:           2.4.1
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -157,7 +157,7 @@ class FluentuLeadbox
         
         $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
         
-        $response = wp_safe_remote_post($url, ['body' => $contact]);
+        $response = wp_safe_remote_post($url, ['timeout' => 15, 'body' => $contact]);
         $result = json_decode(wp_remote_retrieve_body($response), true);
         
         return $result['result_code'] ? false : 'Contact could not be added';
