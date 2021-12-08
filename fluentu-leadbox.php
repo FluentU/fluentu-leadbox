@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.4.6
+ * Version:           2.5.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -56,10 +56,13 @@ class FluentuLeadbox
         wp_enqueue_script('fluentu-leadbox', plugin_dir_url(__FILE__) . 'js/scripts.js', [], null, true);
         wp_localize_script('fluentu-leadbox', 'options', [
             'action'    => 'submit_leadbox',
+            'sitekey'   => RECAPTCHA_SITE_KEY,
             'ajaxurl'   => admin_url('admin-ajax.php'),
             'nonce'     => wp_create_nonce('fluentu_leadbox_' . get_the_ID()),
             'post'      => get_the_ID(),
         ]);
+        $recaptcha_script = add_query_arg('render', RECAPTCHA_SITE_KEY, 'https://www.google.com/recaptcha/api.js');
+        wp_enqueue_script('fluentu-recapthca', $recaptcha_script, [], null, true);
     }
 
     /**
@@ -121,16 +124,57 @@ class FluentuLeadbox
      */
     public function submitLeadbox()
     {
+        $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_STRING);
+        $post = filter_input(INPUT_POST, 'post', FILTER_SANITIZE_STRING);
+
         // check the nonce first
-        if (false == check_ajax_referer('fluentu_leadbox_' . $_POST['post'], 'nonce', false)) {
+        if (false == check_ajax_referer('fluentu_leadbox_' . $post, 'nonce', false)) {
             wp_send_json_error(__('No permission.', 'fluentu-leadbox'));
         }
 
-        if ($error = $this->sendDownloadEmail($_POST['email'], $_POST['post'])) {
+        if ($error = $this->verifyCaptcha()) {
+            wp_send_json_error(__($error, 'fluentu-leadbox'));
+        }
+
+        if ($error = $this->sendDownloadEmail($email, $post)) {
             wp_send_json_error(__($error, 'fluentu-leadbox'));
         }
 
         wp_send_json_success(__('Thanks, check your inbox now!', 'fluentu-leadbox'));
+    }
+
+    /**
+     * Verify ReCAPTCHA on Google server
+     *
+     * @return mixed  Error message or false if no error
+     */
+    protected function verifyCaptcha()
+    {
+        if ($captcha = filter_input(INPUT_POST, 'recaptcha_token', FILTER_SANITIZE_STRING)) {
+            $url = 'https://www.google.com/recaptcha/api/siteverify';
+            $data = [
+                'secret'    => RECAPTCHA_SECRET_KEY,
+                'response'  => $captcha,
+                'remoteip'  => $_SERVER['REMOTE_ADDR']
+            ];
+            $options = [
+                'http' => [
+                    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+                    'method'  => 'POST',
+                    'content' => http_build_query($data)
+                ]
+            ];
+
+            $context  = stream_context_create($options);
+            $response = file_get_contents($url, false, $context);
+            $response_keys = json_decode($response, true);
+
+            if ($response_keys['success']) {
+                return false;   // No errors
+            }
+        }
+
+        return 'ReCAPTCHA verification failed';
     }
 
     /**

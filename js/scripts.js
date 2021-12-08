@@ -13,35 +13,45 @@
 
   popform.addEventListener('submit', function(event) {
     event.preventDefault();
-    options.email = document.querySelector('#fluentu-form [name=email]').value;
 
-    if (options.email) {
-      btn.value = 'Preparing your PDF...';
+    grecaptcha.ready(function() {
+      grecaptcha.execute(options.sitekey, { action: 'submit' }).then(function(token) {
+        options.recaptcha_token = token;
+        options.email = document.querySelector('#fluentu-form [name=email]').value;
 
-      var http = new XMLHttpRequest();
-      http.open('POST', options.ajaxurl, true);
-      http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-      http.onload = function () {
-        var responseText = JSON.parse(http.responseText);
-        if (this.status >= 200 && this.status < 400) {
-          heading.classList.remove('fluentu-error');
-          popform.style.display = 'none';
-          close.style.display = 'block';
-        } else {
-          heading.classList.add('fluentu-error');
+        if (options.email) {
+          btn.value = 'Preparing your PDF...';
+
+          var http = new XMLHttpRequest();
+          http.open('POST', options.ajaxurl, true);
+          http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+          http.onload = function() {
+            var responseText = JSON.parse(http.responseText);
+            if (this.status >= 200 && this.status < 400) {
+              heading.classList.remove('fluentu-error');
+              popform.style.display = 'none';
+              close.style.display = 'block';
+            } else {
+              heading.classList.add('fluentu-error');
+            }
+            heading.innerHTML = responseText.data;
+            btn.value = label;
+          };
+          http.onerror = function(error) {
+            console.error(error);
+          };
+
+          delete options.ajaxurl;
+          http.send(
+            Object.keys(options)
+              .map(function(k) {
+                return encodeURIComponent(k) + '=' + encodeURIComponent(options[k]);
+              })
+              .join('&')
+          );
         }
-        heading.innerHTML = responseText.data;
-        btn.value = label;
-      };
-      http.onerror = function(error) {
-        console.error(error);
-      };
-
-      delete options.ajaxurl;
-      http.send(Object.keys(options).map(function(k) {
-        return encodeURIComponent(k) + '=' + encodeURIComponent(options[k])
-      }).join('&'));
-    }
+      });
+    });
   });
 
   link.addEventListener('click', function(event) {
