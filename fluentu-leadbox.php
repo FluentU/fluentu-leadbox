@@ -52,17 +52,19 @@ class FluentuLeadbox
      */
     public function scripts()
     {
-        wp_enqueue_style('fluentu-leadbox', plugin_dir_url(__FILE__) . 'css/style.css');
-        wp_enqueue_script('fluentu-leadbox', plugin_dir_url(__FILE__) . 'js/scripts.js', [], null, true);
-        wp_localize_script('fluentu-leadbox', 'options', [
-            'action'    => 'submit_leadbox',
-            'sitekey'   => RECAPTCHA_SITE_KEY,
-            'ajaxurl'   => admin_url('admin-ajax.php'),
-            'nonce'     => wp_create_nonce('fluentu_leadbox_' . get_the_ID()),
-            'post'      => get_the_ID(),
-        ]);
-        $recaptcha_script = add_query_arg('render', RECAPTCHA_SITE_KEY, 'https://www.google.com/recaptcha/api.js');
-        wp_enqueue_script('fluentu-recapthca', $recaptcha_script, [], null, true);
+        if (is_single()) {
+            wp_enqueue_style('fluentu-leadbox', plugin_dir_url(__FILE__) . 'css/style.css');
+            wp_enqueue_script('fluentu-leadbox', plugin_dir_url(__FILE__) . 'js/scripts.js', [], null, true);
+            wp_localize_script('fluentu-leadbox', 'options', [
+                'action'    => 'submit_leadbox',
+                'sitekey'   => RECAPTCHA_SITE_KEY,
+                'ajaxurl'   => admin_url('admin-ajax.php'),
+                'nonce'     => wp_create_nonce('fluentu_leadbox_' . get_the_ID()),
+                'post'      => get_the_ID(),
+            ]);
+            $recaptcha_script = add_query_arg('render', RECAPTCHA_SITE_KEY, 'https://www.google.com/recaptcha/api.js');
+            wp_enqueue_script('fluentu-recapthca', $recaptcha_script, [], null, true);
+        }
     }
 
     /**
