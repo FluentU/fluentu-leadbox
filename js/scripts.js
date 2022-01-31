@@ -1,5 +1,5 @@
 (function() {
-  var link = document.querySelector('.fluentu-leadbox-link a');
+  var links = document.querySelectorAll('.fluentu-leadbox-link a');
   var modal = document.querySelector('.fluentu-leadbox-backdrop');
   var leadbox = document.querySelector('.fluentu-leadbox');
   var popform = document.querySelector('#fluentu-form');
@@ -54,9 +54,11 @@
     });
   });
 
-  link.addEventListener('click', function(event) {
-    event.preventDefault();
-    modal.classList.add('fluentu-leadbox-show');
+  links.forEach(function(link) {
+    link.addEventListener('click', function(event) {
+      event.preventDefault();
+      modal.classList.add('fluentu-leadbox-show');
+    });
   });
 
   modal.addEventListener('click', function(event) {
