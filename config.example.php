@@ -11,5 +11,3 @@ define('AC_API_URL', '');
 define('AC_API_KEY', '');
 define('AC_LIST_ID', 5);
 define('INSERT_POINTS', ['<h2', '<div class="fluen-after-content"']);
-define('RECAPTCHA_SITE_KEY', '');
-define('RECAPTCHA_SECRET_KEY', '');

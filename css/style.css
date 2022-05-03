@@ -55,6 +55,12 @@
     width: 100%;
 }
 
+.fluentu-leadbox .confirm-email-input {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+}
+
 .fluentu-error {
     color: red;
 }
