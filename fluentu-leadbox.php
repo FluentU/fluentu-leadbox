@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.7.1
+ * Version:           2.7.2
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -53,8 +53,8 @@ class FluentuLeadbox
     public function scripts()
     {
         if (is_single()) {
-            wp_enqueue_style('fluentu-leadbox', plugin_dir_url(__FILE__) . 'css/style.css');
-            wp_enqueue_script('fluentu-leadbox', plugin_dir_url(__FILE__) . 'js/scripts.js', [], '2.7.1', true);
+            wp_enqueue_style('fluentu-leadbox', plugin_dir_url(__FILE__) . 'css/style.css', [], '2.7.2');
+            wp_enqueue_script('fluentu-leadbox', plugin_dir_url(__FILE__) . 'js/scripts.js', [], '2.7.2', true);
             wp_localize_script('fluentu-leadbox', 'options', [
                 'action'    => 'submit_leadbox',
                 'ajaxurl'   => admin_url('admin-ajax.php'),
@@ -112,7 +112,7 @@ class FluentuLeadbox
     public function modalMarkup()
     {
         if (is_single()) {
-            require('tmpl/lead-box.html');
+            require('tmpl/leadbox.html');
         }
     }
 
