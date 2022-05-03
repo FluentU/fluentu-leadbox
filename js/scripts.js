@@ -13,8 +13,9 @@
 
   popform.addEventListener('submit', function(event) {
     event.preventDefault();
+    var confirmEmail = document.querySelector('#fluentu-form [name=confirm_email]');
     options.email = document.querySelector('#fluentu-form [name=email]').value;
-    options.confirm_email = document.querySelector('#fluentu-form [name=confirm_email]').value;
+    options.confirm_email = confirmEmail ? confirmEmail.value : '';
 
     if (options.email) {
       btn.value = 'Preparing your PDF...';
