@@ -13,45 +13,40 @@
 
   popform.addEventListener('submit', function(event) {
     event.preventDefault();
+    options.email = document.querySelector('#fluentu-form [name=email]').value;
+    options.confirm_email = document.querySelector('#fluentu-form [name=confirm_email]').value;
 
-    grecaptcha.ready(function() {
-      grecaptcha.execute(options.sitekey, { action: 'submit' }).then(function(token) {
-        options.recaptcha_token = token;
-        options.email = document.querySelector('#fluentu-form [name=email]').value;
+    if (options.email) {
+      btn.value = 'Preparing your PDF...';
 
-        if (options.email) {
-          btn.value = 'Preparing your PDF...';
-
-          var http = new XMLHttpRequest();
-          http.open('POST', options.ajaxurl, true);
-          http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-          http.onload = function() {
-            var responseText = JSON.parse(http.responseText);
-            if (this.status >= 200 && this.status < 400) {
-              heading.classList.remove('fluentu-error');
-              popform.style.display = 'none';
-              close.style.display = 'block';
-            } else {
-              heading.classList.add('fluentu-error');
-            }
-            heading.innerHTML = responseText.data;
-            btn.value = label;
-          };
-          http.onerror = function(error) {
-            console.error(error);
-          };
-
-          delete options.ajaxurl;
-          http.send(
-            Object.keys(options)
-              .map(function(k) {
-                return encodeURIComponent(k) + '=' + encodeURIComponent(options[k]);
-              })
-              .join('&')
-          );
+      var http = new XMLHttpRequest();
+      http.open('POST', options.ajaxurl, true);
+      http.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+      http.onload = function() {
+        var responseText = JSON.parse(http.responseText);
+        if (this.status >= 200 && this.status < 400) {
+          heading.classList.remove('fluentu-error');
+          popform.style.display = 'none';
+          close.style.display = 'block';
+        } else {
+          heading.classList.add('fluentu-error');
         }
-      });
-    });
+        heading.innerHTML = responseText.data;
+        btn.value = label;
+      };
+      http.onerror = function(error) {
+        console.error(error);
+      };
+
+      delete options.ajaxurl;
+      http.send(
+        Object.keys(options)
+          .map(function(k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(options[k]);
+          })
+          .join('&')
+      );
+    }
   });
 
   links.forEach(function(link) {
