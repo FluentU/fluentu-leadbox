@@ -151,7 +151,7 @@ class FluentuLeadbox
 
     /**
      * Add email address to Email Octopus list
-     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_post
+     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_put
      *
      * @param  string $email user's email address
      * @param  int    $post_id the Post ID
@@ -170,7 +170,7 @@ class FluentuLeadbox
         $response = wp_safe_remote_request($url, [
             'headers' => [
                 'Content-Type'  => 'application/json',
-                'Authorization' => 'Bearer ' . EO_API_KEY
+                'Authorization' => 'Bearer ' . EO_API_KEY,
             ],
             'method' => 'PUT',
             'timeout' => 25, 
