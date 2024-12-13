@@ -150,7 +150,8 @@ class FluentuLeadbox
     }
 
     /**
-     * Add email address to Active Campaign list
+     * Add email address to Email Octopus list
+     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_post
      *
      * @param  string $email user's email address
      * @param  int    $post_id the Post ID
@@ -158,25 +159,29 @@ class FluentuLeadbox
      */
     protected function addSubscriber(string $email, int $post_id)
     {
-        $params = [
-            'api_key'       => AC_API_KEY,
-            'api_action'    => 'contact_sync',
-            'api_output'    => 'json',
-        ];
-        
         $contact = [
-            'email'                         => $email,
-            'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
-            'status[' . AC_LIST_ID . ']'    => 1,
-            'tags'                          => $this->generateTags($post_id),
+            'email_address' => $email,
+            'tags'          => $this->generateTags($post_id),
+            'status'        => 'subscribed',
         ];
         
-        $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
+        $url = 'https://' . EO_API_URL . '/lists/' . EO_LIST_ID . '/contacts';
         
-        $response = wp_safe_remote_post($url, ['timeout' => 15, 'body' => $contact]);
+        $response = wp_safe_remote_request($url, [
+            'headers' => [
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . EO_API_KEY
+            ],
+            'method' => 'PUT',
+            'timeout' => 25, 
+            'body' => wp_json_encode($contact),
+            'data_format' => 'body',
+
+        ]);
         $result = json_decode(wp_remote_retrieve_body($response), true);
         
-        return $result['result_code'] ? false : 'Contact could not be added';
+        // HTTP status 409 means resource already exists
+        return $result['id'] || $result['status'] === 409 ? false : 'Contact could not be added';
     }
 
     /**
