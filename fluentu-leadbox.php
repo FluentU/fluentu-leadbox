@@ -274,7 +274,7 @@ class FluentuLeadbox
      * Generate Active Campaign tags based on Blog tagline
      *
      * @param  int    $post_id the Post ID
-     * @return string [description]
+     * @return array
      */
     protected function generateTags(int $post_id)
     {
@@ -283,14 +283,14 @@ class FluentuLeadbox
         $blog_tag = str_replace('FluentU', '', get_bloginfo('description'));
         $blog_tag = str_replace('Blog', '', $blog_tag);
         $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
-        $tags[] = 'BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag));
+        $tags['BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag))] = true;
 
         $categories = wp_get_post_categories($_POST['post'], ['fields' => 'names']);
         foreach ($categories as $category) {
-            $tags[] = 'WP CAT: ' . $category;
+            $tags['WP CAT: ' . $category] = true;
         }
 
-        return join(',', $tags);
+        return $tags;
     }
 }
 
