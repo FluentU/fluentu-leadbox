@@ -161,7 +161,7 @@ class FluentuLeadbox
     {
         $contact = [
             'email_address' => $email,
-            'tags'          => $this->generateTags($post_id),
+            'fields'        => $this->generateField($post_id),
             'status'        => 'subscribed',
         ];
         
@@ -271,26 +271,18 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Active Campaign tags based on Blog tagline
+     * Generate Email Octopus field based on Blog tagline
      *
      * @param  int    $post_id the Post ID
      * @return array
      */
-    protected function generateTags(int $post_id)
+    protected function generateField(int $post_id)
     {
-        $tags = ['SOURCE: Blog', 'SOURCE: Blog - Leadbox'];
-
         $blog_tag = str_replace('FluentU', '', get_bloginfo('description'));
         $blog_tag = str_replace('Blog', '', $blog_tag);
         $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
-        $tags['BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag))] = true;
 
-        $categories = wp_get_post_categories($_POST['post'], ['fields' => 'names']);
-        foreach ($categories as $category) {
-            $tags['WP CAT: ' . $category] = true;
-        }
-
-        return $tags;
+        return ['Blog' => preg_replace('/[ -]+/', '_', trim($blog_tag))];
     }
 }
 
