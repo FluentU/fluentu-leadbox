@@ -282,7 +282,7 @@ class FluentuLeadbox
         $blog_tag = str_replace('Blog', '', $blog_tag);
         $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
 
-        return ['Blog' => preg_replace('/[ -]+/', '_', trim($blog_tag))];
+        return ['Blog' => trim($blog_tag)];
     }
 }
 
