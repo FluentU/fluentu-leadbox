@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           2.7.3
+ * Version:           3.0.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -150,7 +150,8 @@ class FluentuLeadbox
     }
 
     /**
-     * Add email address to Active Campaign list
+     * Add email address to Email Octopus list
+     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_put
      *
      * @param  string $email user's email address
      * @param  int    $post_id the Post ID
@@ -158,25 +159,29 @@ class FluentuLeadbox
      */
     protected function addSubscriber(string $email, int $post_id)
     {
-        $params = [
-            'api_key'       => AC_API_KEY,
-            'api_action'    => 'contact_sync',
-            'api_output'    => 'json',
-        ];
-        
         $contact = [
-            'email'                         => $email,
-            'p[' . AC_LIST_ID . ']'         => AC_LIST_ID,
-            'status[' . AC_LIST_ID . ']'    => 1,
-            'tags'                          => $this->generateTags($post_id),
+            'email_address' => $email,
+            'tags'          => $this->generateTags($post_id),
+            'status'        => 'subscribed',
         ];
         
-        $url = AC_API_URL . '/admin/api.php?' . http_build_query($params);
+        $url = 'https://' . EO_API_URL . '/lists/' . EO_LIST_ID . '/contacts';
         
-        $response = wp_safe_remote_post($url, ['timeout' => 15, 'body' => $contact]);
+        $response = wp_safe_remote_request($url, [
+            'headers' => [
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . EO_API_KEY,
+            ],
+            'method' => 'PUT',
+            'timeout' => 25, 
+            'body' => wp_json_encode($contact),
+            'data_format' => 'body',
+
+        ]);
         $result = json_decode(wp_remote_retrieve_body($response), true);
         
-        return $result['result_code'] ? false : 'Contact could not be added';
+        // HTTP status 409 means resource already exists
+        return $result['id'] || $result['status'] === 409 ? false : 'Contact could not be added';
     }
 
     /**
@@ -266,26 +271,20 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Active Campaign tags based on Blog tagline
+     * Generate Email Octopus tags based on Blog categories
      *
      * @param  int    $post_id the Post ID
-     * @return string [description]
+     * @return array
      */
     protected function generateTags(int $post_id)
     {
-        $tags = ['SOURCE: Blog', 'SOURCE: Blog - Leadbox'];
-
-        $blog_tag = str_replace('FluentU', '', get_bloginfo('description'));
-        $blog_tag = str_replace('Blog', '', $blog_tag);
-        $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
-        $tags[] = 'BLOG: ' . preg_replace('/[ -]+/', '_', trim($blog_tag));
-
-        $categories = wp_get_post_categories($_POST['post'], ['fields' => 'names']);
+        $tags = [];
+        $categories = wp_get_post_categories($post_id, ['fields' => 'names', 'parent' => 0]);
         foreach ($categories as $category) {
-            $tags[] = 'WP CAT: ' . $category;
+            $tags['BLOG: ' . $category] = true;
         }
 
-        return join(',', $tags);
+        return $tags;
     }
 }
 
