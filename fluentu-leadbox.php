@@ -161,7 +161,7 @@ class FluentuLeadbox
     {
         $contact = [
             'email_address' => $email,
-            'fields'        => $this->generateField($post_id),
+            'tags'          => $this->generateTags($post_id),
             'status'        => 'subscribed',
         ];
         
@@ -271,18 +271,20 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Email Octopus field based on Blog tagline
+     * Generate Email Octopus tags based on Blog categories
      *
      * @param  int    $post_id the Post ID
      * @return array
      */
-    protected function generateField(int $post_id)
+    protected function generateTags(int $post_id)
     {
-        $blog_tag = str_replace('FluentU', '', get_bloginfo('description'));
-        $blog_tag = str_replace('Blog', '', $blog_tag);
-        $blog_tag = str_replace('Language and Culture', 'Learner', $blog_tag);
+        $tags = [];
+        $categories = wp_get_post_categories($post_id, ['fields' => 'names', 'parent' => 0]);
+        foreach ($categories as $category) {
+            $tags['BLOG: ' . $category] = true;
+        }
 
-        return ['Blog' => trim($blog_tag)];
+        return $tags;
     }
 }
 
