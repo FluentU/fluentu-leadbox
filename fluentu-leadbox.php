@@ -284,7 +284,7 @@ class FluentuLeadbox
             if (strpos($category, ' ') === false && strpos($category, 'Educator') === false) {
                 $category .= ' Learner';
             }
-            $tags['BLOG: ' . preg_replace('/[ -]+/', '_', trim($category))] = true;
+            $tags['BLOG - ' . preg_replace('/[ -]+/', '_', trim($category))] = true;
         }
 
         return $tags;
