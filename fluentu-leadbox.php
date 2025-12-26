@@ -16,12 +16,13 @@
  * Network:           true
  */
 
-require_once('config.php');
-
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
     die;
 }
+
+// Load plugin config (INSERT_POINTS only - API keys should be in wp-config.php)
+require_once(__DIR__ . '/config.php');
 
 /**
  * Main plugin class
