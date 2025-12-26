@@ -9,7 +9,7 @@
  * Plugin Name:       FluentU LeadBox Plugin
  * Plugin URI:        https://github.com/FluentU/fluentu-leadbox
  * Description:       Simple plugin for generating PDFs from posts and emailing download links.
- * Version:           3.0.1
+ * Version:           4.0.0
  * Author:            Elco Brouwer von Gonzenbach
  * Author URI:        https://github.com/elcobvg
  * Text Domain:       fluentu-leadbox
@@ -124,7 +124,7 @@ class FluentuLeadbox
     public function submitLeadbox()
     {
         $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-        $post = filter_input(INPUT_POST, 'post', FILTER_SANITIZE_STRING);
+        $post = sanitize_text_field($_POST['post'] ?? '');
 
         // check the nonce first
         if (false == check_ajax_referer('fluentu_leadbox_' . $post, 'nonce', false)) {
@@ -146,42 +146,119 @@ class FluentuLeadbox
      */
     protected function verifyHoneypot()
     {
-        return !filter_input(INPUT_POST, 'confirm_email', FILTER_SANITIZE_STRING);
+        return empty(sanitize_text_field($_POST['confirm_email'] ?? ''));
     }
 
     /**
-     * Add email address to Email Octopus list
-     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_put
+     * Add subscriber to email services.
+     * During dual-write phase, writes to both EmailOctopus and Dittofeed.
      *
-     * @param  string $email user's email address
+     * @param  string $email   user's email address
      * @param  int    $post_id the Post ID
      * @return mixed  Error message or false if no error
      */
     protected function addSubscriber(string $email, int $post_id)
+    {
+        $eo_error = null;
+        $df_error = null;
+
+        // Write to EmailOctopus (existing behavior)
+        if (defined('DUAL_WRITE_ENABLED') && DUAL_WRITE_ENABLED) {
+            $eo_error = $this->addSubscriberToEmailOctopus($email, $post_id);
+        }
+
+        // Write to Dittofeed
+        $df_error = $this->addSubscriberToDittofeed($email, $post_id);
+
+        // During dual-write, succeed if either succeeds
+        if (defined('DUAL_WRITE_ENABLED') && DUAL_WRITE_ENABLED) {
+            return ($eo_error === false || $df_error === false) ? false : $df_error;
+        }
+
+        return $df_error;
+    }
+
+    /**
+     * Add email address to Email Octopus list.
+     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_put
+     *
+     * @param  string $email   user's email address
+     * @param  int    $post_id the Post ID
+     * @return mixed  Error message or false if no error
+     */
+    protected function addSubscriberToEmailOctopus(string $email, int $post_id)
     {
         $contact = [
             'email_address' => $email,
             'tags'          => $this->generateTags($post_id),
             'status'        => 'subscribed',
         ];
-        
+
         $url = 'https://' . EO_API_URL . '/lists/' . EO_LIST_ID . '/contacts';
-        
+
         $response = wp_safe_remote_request($url, [
             'headers' => [
                 'Content-Type'  => 'application/json',
                 'Authorization' => 'Bearer ' . EO_API_KEY,
             ],
             'method' => 'PUT',
-            'timeout' => 25, 
+            'timeout' => 25,
             'body' => wp_json_encode($contact),
             'data_format' => 'body',
-
         ]);
         $result = json_decode(wp_remote_retrieve_body($response), true);
-        
+
         // HTTP status 409 means resource already exists
-        return $result['id'] || $result['status'] === 409 ? false : 'Contact could not be added';
+        return $result['id'] || $result['status'] === 409 ? false : 'Contact could not be added to EmailOctopus';
+    }
+
+    /**
+     * Identify user in Dittofeed with traits.
+     * @see https://docs.dittofeed.com/api-reference/endpoints/apps/identify
+     *
+     * @param  string $email   user's email address
+     * @param  int    $post_id the Post ID
+     * @return mixed  Error message or false if no error
+     */
+    protected function addSubscriberToDittofeed(string $email, int $post_id)
+    {
+        if (!defined('DITTOFEED_API_URL') || !defined('DITTOFEED_WRITE_KEY') || !defined('DITTOFEED_APP_ENV')) {
+            return 'Dittofeed not configured';
+        }
+
+        $anonymousId = 'anon:' . $email;
+        $traits = $this->generateTraits($email, $post_id);
+
+        // Apply environment prefix to email in non-production
+        if (DITTOFEED_APP_ENV !== 'linux-production') {
+            $traits['email'] = DITTOFEED_APP_ENV . '_' . $email;
+        }
+
+        $payload = [
+            'userId'    => $anonymousId,
+            'traits'    => $traits,
+            'messageId' => wp_generate_uuid4(),
+        ];
+
+        // DITTOFEED_WRITE_KEY should be stored as base64-encoded (matching FluentU web app)
+        $writeKey = DITTOFEED_WRITE_KEY;
+
+        $response = wp_safe_remote_post(
+            DITTOFEED_API_URL . '/api/public/apps/identify',
+            [
+                'headers' => [
+                    'Content-Type'   => 'application/json',
+                    'Authorization'  => 'Basic ' . $writeKey,
+                    'PublicWriteKey' => base64_decode($writeKey),
+                ],
+                'timeout' => 25,
+                'body'    => wp_json_encode($payload),
+            ]
+        );
+
+        $code = wp_remote_retrieve_response_code($response);
+
+        return ($code >= 200 && $code < 300) ? false : 'Contact could not be added to Dittofeed';
     }
 
     /**
@@ -227,7 +304,7 @@ class FluentuLeadbox
         $file = strpos(rawurlencode(basename($url)), '%') === false ? basename($url) : $post_id;
         $path = trailingslashit(wp_get_upload_dir()['path']) . $file . '.pdf';
         $pdf_download_url = trailingslashit(wp_get_upload_dir()['url']) . $file . '.pdf';
-        
+
         $response = wp_safe_remote_post(
             'https://api.printfriendly.com/v2/pdf/create?api_key=' . PRINTFRIENDLY_API_KEY,
             [
@@ -240,7 +317,7 @@ class FluentuLeadbox
         );
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
-        
+
         // Fetch PDF and store locally
         if ($body['status'] === 'success' && wp_safe_remote_get($body['file_url'], [
             'timeout'  => 300,
@@ -249,7 +326,7 @@ class FluentuLeadbox
         ])) {
             return update_post_meta($post_id, 'pdf_download_url', $pdf_download_url) ? false : 'Could not save PDF';
         }
-                       
+
         return __('Could not generate download link for '. $url, 'fluentu-leadbox');
     }
 
@@ -271,7 +348,8 @@ class FluentuLeadbox
     }
 
     /**
-     * Generate Email Octopus tags based on Blog categories
+     * Generate Email Octopus tags based on Blog categories.
+     * (To be removed in Phase 2)
      *
      * @param  int    $post_id the Post ID
      * @return array
@@ -288,6 +366,74 @@ class FluentuLeadbox
         }
 
         return $tags;
+    }
+
+    /**
+     * Generate Dittofeed traits based on Blog categories.
+     *
+     * @param  string $email   user's email address
+     * @param  int    $post_id the Post ID
+     * @return array<string, mixed>
+     */
+    protected function generateTraits(string $email, int $post_id)
+    {
+        $languageMap = [
+            'Spanish'          => 'learningSpanish',
+            'French'           => 'learningFrench',
+            'German'           => 'learningGerman',
+            'Italian'          => 'learningItalian',
+            'Japanese'         => 'learningJapanese',
+            'Korean'           => 'learningKorean',
+            'Chinese'          => 'learningChinese',
+            'Mandarin Chinese' => 'learningChinese',
+            'Russian'          => 'learningRussian',
+            'Portuguese'       => 'learningPortuguese',
+            'English'          => 'learningEnglish',
+            'Arabic'           => 'learningArabic',
+        ];
+
+        $nativeLanguageMap = [
+            'English for Spanish Speakers'    => 'Spanish',
+            'English for Chinese Speakers'    => 'Chinese',
+            'English for Japanese Speakers'   => 'Japanese',
+            'English for Korean Speakers'     => 'Korean',
+            'English for Italian Speakers'    => 'Italian',
+            'English for Russian Speakers'    => 'Russian',
+            'English for Portuguese Speakers' => 'Portuguese',
+        ];
+
+        $traits = [
+            'email'       => $email,
+            'source'      => 'Blog - Leadbox',
+            'landingPage' => get_permalink($post_id),
+            'environment' => DITTOFEED_APP_ENV,
+        ];
+
+        $categories = wp_get_post_categories($post_id, ['fields' => 'names', 'parent' => 0]);
+
+        foreach ($categories as $category) {
+            // Check for "English for X Speakers" pattern
+            if (isset($nativeLanguageMap[$category])) {
+                $traits['learningEnglish'] = true;
+                $traits['nativeLanguage'] = $nativeLanguageMap[$category];
+                continue;
+            }
+
+            // Check for language learner categories
+            foreach ($languageMap as $language => $traitName) {
+                if (stripos($category, $language) !== false) {
+                    $traits[$traitName] = true;
+                    break;
+                }
+            }
+
+            // Educator or General categories
+            if (stripos($category, 'Educator') !== false || stripos($category, 'General') !== false) {
+                $traits['fluentuAnnouncements'] = true;
+            }
+        }
+
+        return $traits;
     }
 }
 
