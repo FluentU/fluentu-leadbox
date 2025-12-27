@@ -152,69 +152,6 @@ class FluentuLeadbox
     }
 
     /**
-     * Add subscriber to email services.
-     * During dual-write phase, writes to both EmailOctopus and Dittofeed.
-     *
-     * @param  string $email   user's email address
-     * @param  int    $post_id the Post ID
-     * @return mixed  Error message or false if no error
-     */
-    protected function addSubscriber(string $email, int $post_id)
-    {
-        $eo_error = null;
-        $df_error = null;
-
-        // Write to EmailOctopus (existing behavior)
-        if (defined('DUAL_WRITE_ENABLED') && DUAL_WRITE_ENABLED) {
-            $eo_error = $this->addSubscriberToEmailOctopus($email, $post_id);
-        }
-
-        // Write to Dittofeed
-        $df_error = $this->addSubscriberToDittofeed($email, $post_id);
-
-        // During dual-write, succeed if either succeeds
-        if (defined('DUAL_WRITE_ENABLED') && DUAL_WRITE_ENABLED) {
-            return ($eo_error === false || $df_error === false) ? false : $df_error;
-        }
-
-        return $df_error;
-    }
-
-    /**
-     * Add email address to Email Octopus list.
-     * @see https://emailoctopus.com/api-documentation/v2#tag/Contact/operation/api_lists_list_idcontacts_put
-     *
-     * @param  string $email   user's email address
-     * @param  int    $post_id the Post ID
-     * @return mixed  Error message or false if no error
-     */
-    protected function addSubscriberToEmailOctopus(string $email, int $post_id)
-    {
-        $contact = [
-            'email_address' => $email,
-            'tags'          => $this->generateTags($post_id),
-            'status'        => 'subscribed',
-        ];
-
-        $url = 'https://' . EO_API_URL . '/lists/' . EO_LIST_ID . '/contacts';
-
-        $response = wp_safe_remote_request($url, [
-            'headers' => [
-                'Content-Type'  => 'application/json',
-                'Authorization' => 'Bearer ' . EO_API_KEY,
-            ],
-            'method' => 'PUT',
-            'timeout' => 25,
-            'body' => wp_json_encode($contact),
-            'data_format' => 'body',
-        ]);
-        $result = json_decode(wp_remote_retrieve_body($response), true);
-
-        // HTTP status 409 means resource already exists
-        return $result['id'] || $result['status'] === 409 ? false : 'Contact could not be added to EmailOctopus';
-    }
-
-    /**
      * Identify user in Dittofeed with traits.
      * @see https://docs.dittofeed.com/api-reference/endpoints/apps/identify
      *
@@ -272,7 +209,7 @@ class FluentuLeadbox
      */
     protected function sendDownloadEmail(string $email, int $post_id)
     {
-        if ($error = $this->addSubscriber($email, $post_id)) {
+        if ($error = $this->addSubscriberToDittofeed($email, $post_id)) {
             return $error;
         }
 
@@ -347,27 +284,6 @@ class FluentuLeadbox
         $message = str_replace('{{ pdf }}', $download_url, $message);
 
         return $message;
-    }
-
-    /**
-     * Generate Email Octopus tags based on Blog categories.
-     * (To be removed in Phase 2)
-     *
-     * @param  int    $post_id the Post ID
-     * @return array
-     */
-    protected function generateTags(int $post_id)
-    {
-        $tags = [];
-        $categories = wp_get_post_categories($post_id, ['fields' => 'names', 'parent' => 0]);
-        foreach ($categories as $category) {
-            if (strpos($category, ' ') === false && strpos($category, 'Educator') === false) {
-                $category .= ' Learner';
-            }
-            $tags['BLOG - ' . preg_replace('/[ -]+/', '_', trim($category))] = true;
-        }
-
-        return $tags;
     }
 
     /**
