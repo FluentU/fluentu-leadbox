@@ -24,6 +24,7 @@ API keys and service credentials are defined separately in `wp-config.php` (not 
 ## Updating wp-config.php
 
 1. Connect to the blog server via SSH (the IP of the autoscaling instance changes automatically)
+    ssh -i ~/.ssh/fluentu/ec2-user.key ec2-user@3.88.43.120
 2. Run `sudo su` before editing files
 3. Edit `wp-config.php` directly on the server via SSH
 4. Updating files on the autoscaling instance works because it is connected to an NFS server
